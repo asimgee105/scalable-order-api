@@ -6,8 +6,10 @@ use App\Actions\Orders\CreateOrderAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use App\Http\Resources\OrderResource;
 
 class OrderController extends Controller
@@ -15,28 +17,28 @@ class OrderController extends Controller
     /**
      * Logged-in user ke orders show karega.
      */
-    public function index(Request $request): JsonResponse
-    {
-        $orders = Order::query()
-            ->where('user_id', $request->user()->id)
-            ->with([
-                'items.product:id,name,sku',
-            ])
-            ->latest()
-            ->paginate(10);
+public function index(Request $request): AnonymousResourceCollection
+{
+    $orders = Order::query()
+        ->where('user_id', $request->user()->id)
+        ->with([
+            'items.product:id,name,sku',
+        ])
+        ->latest()
+        ->paginate(10);
 
-        return response()->json([
+    return OrderResource::collection($orders)
+        ->additional([
             'success' => true,
-            'data' => $orders,
         ]);
-    }
+}
 
     /**
      * Single order show karega.
      */
-public function show(Request $request, Order $order): JsonResponse
+public function show(Order $order): JsonResponse
 {
-    $this->authorize('view', $order);
+    Gate::authorize('view', $order);
 
     $order->load([
         'items.product:id,name,sku',
