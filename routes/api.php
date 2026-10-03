@@ -22,7 +22,10 @@ Route::middleware([
 ])->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
-
+Route::post(
+    '/products/{product}/image',
+    [ProductController::class, 'uploadImage']
+);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::post('/orders', [OrderController::class, 'store']);
