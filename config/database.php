@@ -54,6 +54,17 @@ return [
             'password' => env('DB_PASSWORD', ''),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'read' => [
+            'host' => [
+            env('DB_READ_HOST', '127.0.0.1'),
+                    ],
+                ],
+
+                'write' => [
+                    'host' => [
+                        env('DB_WRITE_HOST', '127.0.0.1'),
+                    ],
+                ],
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
             'prefix_indexes' => true,
