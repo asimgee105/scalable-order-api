@@ -14,6 +14,7 @@ class Order extends Model
     protected $fillable = [
         'user_id',
         'status',
+        'idempotency_key',
         'total_amount',
     ];
 

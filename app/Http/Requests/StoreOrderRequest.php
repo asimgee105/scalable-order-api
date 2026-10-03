@@ -32,6 +32,17 @@ class StoreOrderRequest extends FormRequest
                 'integer',
                 'min:1',
             ],
+            'idempotency_key' => [
+                'required',
+                'string',
+                'max:100',
+            ],
         ];
     }
+protected function prepareForValidation(): void
+{
+    $this->merge([
+        'idempotency_key' => $this->header('Idempotency-Key'),
+    ]);
+}
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Database\QueryException;
 
 class OrderController extends Controller
 {
@@ -43,13 +44,27 @@ class OrderController extends Controller
     }
 public function store(StoreOrderRequest $request): JsonResponse
 {
-    $data = $request->validated();
+   $data = $request->validated();
     $user = $request->user();
+    $existingOrder = Order::query()
+        ->where('user_id', $user->id)
+        ->where('idempotency_key', $data['idempotency_key'])
+        ->with('items.product')
+        ->first();
+    if ($existingOrder) {
+        return response()->json([
+            'success' => true,
+            'duplicate' => true,
+            'message' => 'Order was already created.',
+            'data' => $existingOrder,
+        ]);
+    }
     $order = DB::transaction(function () use ($data, $user) {
 
             $order = Order::create([
                 'user_id' => $user->id,
                 'status' => 'pending',
+                 'idempotency_key' => $data['idempotency_key'],
                 'total_amount' => 0,
             ]);
 
