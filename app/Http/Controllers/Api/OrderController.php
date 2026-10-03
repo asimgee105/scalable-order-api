@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
+use App\Events\OrderCreated;
 
 class OrderController extends Controller
 {
@@ -116,7 +117,7 @@ public function store(StoreOrderRequest $request): JsonResponse
 
         return $order;
     });
-
+     OrderCreated::dispatch($order);
     $order->load([
         'user:id,name,email',
         'items.product:id,name,sku,stock',

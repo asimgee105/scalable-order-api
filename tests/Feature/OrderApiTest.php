@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use App\Events\OrderCreated;
+use Illuminate\Support\Facades\Event;
 
 class OrderApiTest extends TestCase
 {
@@ -248,4 +250,45 @@ class OrderApiTest extends TestCase
 
         $this->assertDatabaseCount('orders', 0);
     }
+    public function test_order_created_event_is_dispatched(): void
+{
+    Event::fake([
+        OrderCreated::class,
+    ]);
+
+    $user = User::factory()->create();
+
+    $product = Product::create([
+        'name' => 'Headphones',
+        'sku' => 'HEAD-001',
+        'price' => 200,
+        'stock' => 10,
+        'is_active' => true,
+    ]);
+
+    $token = $user->createToken('test-token')->plainTextToken;
+
+    $response = $this
+        ->withHeaders([
+            'Authorization' => 'Bearer '.$token,
+            'Idempotency-Key' => 'event-test-order-001',
+        ])
+        ->postJson('/api/orders', [
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+    $response->assertCreated();
+
+    Event::assertDispatched(
+        OrderCreated::class,
+        function (OrderCreated $event) use ($user) {
+            return $event->order->user_id === $user->id;
+        }
+    );
+}
 }
