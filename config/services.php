@@ -34,5 +34,11 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'payment_gateway' => [
+    'url' => env(
+        'PAYMENT_GATEWAY_URL',
+        'https://payment.example.test'
+        ),
+    ],  
 
 ];
