@@ -42,98 +42,98 @@ class CreateOrderAction
             |--------------------------------------------------------------------------
             */
 
-         $order = DB::transaction(function () use ($user, $data) {
+            $order = DB::transaction(function () use ($user, $data) {
 
-            $order = Order::create([
-                'user_id' => $user->id,
-                'idempotency_key' => $data['idempotency_key'],
-                'status' => 'pending',
-                'total_amount' => 0,
-            ]);
-
-            /*
-            |--------------------------------------------------------------------------
-            | Product IDs ko same order mein lock karo
-            |--------------------------------------------------------------------------
-            */
-
-            $productIds = collect($data['items'])
-                ->pluck('product_id')
-                ->sort()
-                ->values();
-
-            $products = Product::query()
-                ->whereIn('id', $productIds)
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
-
-            $total = 0;
-
-            foreach ($data['items'] as $item) {
-
-                $product = $products->get($item['product_id']);
-
-                if (! $product) {
-                    throw ValidationException::withMessages([
-                        'items' => [
-                            "Product {$item['product_id']} was not found.",
-                        ],
-                    ]);
-                }
-
-                if (! $product->is_active) {
-                    throw ValidationException::withMessages([
-                        'items' => [
-                            "Product {$product->name} is inactive.",
-                        ],
-                    ]);
-                }
-
-                $quantity = $item['quantity'];
-
-                if ($product->stock < $quantity) {
-                    throw ValidationException::withMessages([
-                        'items' => [
-                            "Insufficient stock for {$product->name}. Available: {$product->stock}",
-                        ],
-                    ]);
-                }
-
-                $unitPrice = (float) $product->price;
-
-                $subtotal = round(
-                    $unitPrice * $quantity,
-                    2
-                );
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'subtotal' => $subtotal,
+                $order = Order::create([
+                    'user_id' => $user->id,
+                    'idempotency_key' => $data['idempotency_key'],
+                    'status' => 'pending',
+                    'total_amount' => 0,
                 ]);
 
-                $product->decrement(
-                    'stock',
-                    $quantity
-                );
+                /*
+                |--------------------------------------------------------------------------
+                | Product IDs ko same order mein lock karo
+                |--------------------------------------------------------------------------
+                */
 
-                Cache::forget(
-                    "product:{$product->id}"
-                );
+                $productIds = collect($data['items'])
+                    ->pluck('product_id')
+                    ->sort()
+                    ->values();
 
-                $total += $subtotal;
-            }
+                $products = Product::query()
+                    ->whereIn('id', $productIds)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
 
-            $order->update([
-                'total_amount' => round($total, 2),
-            ]);
+                $total = 0;
 
-            return $order;
+                foreach ($data['items'] as $item) {
 
-        }, 3);
+                    $product = $products->get($item['product_id']);
+
+                    if (! $product) {
+                        throw ValidationException::withMessages([
+                            'items' => [
+                                "Product {$item['product_id']} was not found.",
+                            ],
+                        ]);
+                    }
+
+                    if (! $product->is_active) {
+                        throw ValidationException::withMessages([
+                            'items' => [
+                                "Product {$product->name} is inactive.",
+                            ],
+                        ]);
+                    }
+
+                    $quantity = $item['quantity'];
+
+                    if ($product->stock < $quantity) {
+                        throw ValidationException::withMessages([
+                            'items' => [
+                                "Insufficient stock for {$product->name}. Available: {$product->stock}",
+                            ],
+                        ]);
+                    }
+
+                    $unitPrice = (float) $product->price;
+
+                    $subtotal = round(
+                        $unitPrice * $quantity,
+                        2
+                    );
+
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'quantity' => $quantity,
+                        'unit_price' => $unitPrice,
+                        'subtotal' => $subtotal,
+                    ]);
+
+                    $product->decrement(
+                        'stock',
+                        $quantity
+                    );
+
+                    Cache::forget(
+                        "product:{$product->id}"
+                    );
+
+                    $total += $subtotal;
+                }
+
+                $order->update([
+                    'total_amount' => round($total, 2),
+                ]);
+
+                return $order;
+
+            }, 3);
 
         } catch (QueryException $e) {
 

@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\JsonResponse;
 use App\Http\Requests\UploadProductImageRequest;
+use App\Models\Product;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
@@ -24,50 +24,51 @@ class ProductController extends Controller
         ]);
     }
 
-   public function show(int $id): JsonResponse
-{
-    $product = Cache::remember(
-        "product:{$id}",
-        now()->addMinutes(5),
-        function () use ($id) {
-            return Product::findOrFail($id);
-        }
-    );
-
-    return response()->json([
-        'success' => true,
-        'data' => $product,
-    ]);
-}
-public function uploadImage(
-    UploadProductImageRequest $request,
-    Product $product
-): JsonResponse {
-    $disk = config('filesystems.default');
-
-    if ($product->image_path) {
-        Storage::disk($disk)->delete(
-            $product->image_path
+    public function show(int $id): JsonResponse
+    {
+        $product = Cache::remember(
+            "product:{$id}",
+            now()->addMinutes(5),
+            function () use ($id) {
+                return Product::findOrFail($id);
+            }
         );
+
+        return response()->json([
+            'success' => true,
+            'data' => $product,
+        ]);
     }
 
-    $path = Storage::disk($disk)->putFile(
-        'products',
-        $request->file('image')
-    );
+    public function uploadImage(
+        UploadProductImageRequest $request,
+        Product $product
+    ): JsonResponse {
+        $disk = config('filesystems.default');
 
-    $product->update([
-        'image_path' => $path,
-    ]);
+        if ($product->image_path) {
+            Storage::disk($disk)->delete(
+                $product->image_path
+            );
+        }
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Product image uploaded successfully.',
-        'data' => [
-            'product_id' => $product->id,
+        $path = Storage::disk($disk)->putFile(
+            'products',
+            $request->file('image')
+        );
+
+        $product->update([
             'image_path' => $path,
-            'image_url' => Storage::disk($disk)->url($path),
-        ],
-    ]);
-}
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product image uploaded successfully.',
+            'data' => [
+                'product_id' => $product->id,
+                'image_path' => $path,
+                'image_url' => Storage::disk($disk)->url($path),
+            ],
+        ]);
+    }
 }

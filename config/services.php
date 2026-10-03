@@ -35,10 +35,10 @@ return [
         ],
     ],
     'payment_gateway' => [
-    'url' => env(
-        'PAYMENT_GATEWAY_URL',
-        'https://payment.example.test'
+        'url' => env(
+            'PAYMENT_GATEWAY_URL',
+            'https://payment.example.test'
         ),
-    ],  
+    ],
 
 ];

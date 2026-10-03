@@ -11,7 +11,7 @@ class StoreOrderRequest extends FormRequest
         return true;
     }
 
-        public function rules(): array
+    public function rules(): array
     {
         return [
             'items' => [
@@ -39,10 +39,11 @@ class StoreOrderRequest extends FormRequest
             ],
         ];
     }
-protected function prepareForValidation(): void
-{
-    $this->merge([
-        'idempotency_key' => $this->header('Idempotency-Key'),
-    ]);
-}
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'idempotency_key' => $this->header('Idempotency-Key'),
+        ]);
+    }
 }

@@ -2,12 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Events\OrderCreated;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-use App\Events\OrderCreated;
 use Illuminate\Support\Facades\Event;
+use Tests\TestCase;
 
 class OrderApiTest extends TestCase
 {
@@ -250,153 +251,158 @@ class OrderApiTest extends TestCase
 
         $this->assertDatabaseCount('orders', 0);
     }
+
     public function test_order_created_event_is_dispatched(): void
-{
-    Event::fake([
-        OrderCreated::class,
-    ]);
-
-    $user = User::factory()->create();
-
-    $product = Product::create([
-        'name' => 'Headphones',
-        'sku' => 'HEAD-001',
-        'price' => 200,
-        'stock' => 10,
-        'is_active' => true,
-    ]);
-
-    $token = $user->createToken('test-token')->plainTextToken;
-
-    $response = $this
-        ->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-            'Idempotency-Key' => 'event-test-order-001',
-        ])
-        ->postJson('/api/orders', [
-            'items' => [
-                [
-                    'product_id' => $product->id,
-                    'quantity' => 1,
-                ],
-            ],
+    {
+        Event::fake([
+            OrderCreated::class,
         ]);
 
-    $response->assertCreated();
+        $user = User::factory()->create();
 
-    Event::assertDispatched(
-        OrderCreated::class,
-        function (OrderCreated $event) use ($user) {
-            return $event->order->user_id === $user->id;
-        }
-    );
-}
-public function test_user_can_view_own_order(): void
-{
-    $user = User::factory()->create();
+        $product = Product::create([
+            'name' => 'Headphones',
+            'sku' => 'HEAD-001',
+            'price' => 200,
+            'stock' => 10,
+            'is_active' => true,
+        ]);
 
-    $order = \App\Models\Order::create([
-        'user_id' => $user->id,
-        'idempotency_key' => 'own-order-001',
-        'status' => 'pending',
-        'total_amount' => 500,
-    ]);
+        $token = $user->createToken('test-token')->plainTextToken;
 
-    $token = $user->createToken('test-token')->plainTextToken;
+        $response = $this
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+                'Idempotency-Key' => 'event-test-order-001',
+            ])
+            ->postJson('/api/orders', [
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 1,
+                    ],
+                ],
+            ]);
 
-    $response = $this
-        ->withHeader('Authorization', 'Bearer '.$token)
-        ->getJson('/api/orders/'.$order->id);
+        $response->assertCreated();
 
-    $response
-        ->assertOk()
-        ->assertJsonPath('success', true)
-        ->assertJsonPath('data.id', $order->id);
-}
-public function test_user_cannot_view_another_users_order(): void
-{
-    $userA = User::factory()->create();
-    $userB = User::factory()->create();
+        Event::assertDispatched(
+            OrderCreated::class,
+            function (OrderCreated $event) use ($user) {
+                return $event->order->user_id === $user->id;
+            }
+        );
+    }
 
-    $order = \App\Models\Order::create([
-        'user_id' => $userB->id,
-        'idempotency_key' => 'private-order-001',
-        'status' => 'pending',
-        'total_amount' => 1000,
-    ]);
+    public function test_user_can_view_own_order(): void
+    {
+        $user = User::factory()->create();
 
-    $token = $userA->createToken('test-token')->plainTextToken;
+        $order = Order::create([
+            'user_id' => $user->id,
+            'idempotency_key' => 'own-order-001',
+            'status' => 'pending',
+            'total_amount' => 500,
+        ]);
 
-    $response = $this
-        ->withHeader('Authorization', 'Bearer '.$token)
-        ->getJson('/api/orders/'.$order->id);
+        $token = $user->createToken('test-token')->plainTextToken;
 
-    $response->assertForbidden();
-}
-public function test_order_resource_hides_internal_fields(): void
-{
-    $user = User::factory()->create();
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders/'.$order->id);
 
-    $order = \App\Models\Order::create([
-        'user_id' => $user->id,
-        'idempotency_key' => 'secret-idempotency-key',
-        'status' => 'pending',
-        'total_amount' => 750,
-    ]);
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.id', $order->id);
+    }
 
-    $token = $user->createToken('test-token')->plainTextToken;
+    public function test_user_cannot_view_another_users_order(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
 
-    $response = $this
-        ->withHeader('Authorization', 'Bearer '.$token)
-        ->getJson('/api/orders/'.$order->id);
+        $order = Order::create([
+            'user_id' => $userB->id,
+            'idempotency_key' => 'private-order-001',
+            'status' => 'pending',
+            'total_amount' => 1000,
+        ]);
 
-    $response
-        ->assertOk()
-        ->assertJsonMissingPath('data.user_id')
-        ->assertJsonMissingPath('data.idempotency_key')
-        ->assertJsonMissingPath('data.updated_at');
-}
-public function test_user_only_sees_own_orders(): void
-{
-    $userA = User::factory()->create();
-    $userB = User::factory()->create();
+        $token = $userA->createToken('test-token')->plainTextToken;
 
-    $orderA = \App\Models\Order::create([
-        'user_id' => $userA->id,
-        'idempotency_key' => 'user-a-order',
-        'status' => 'pending',
-        'total_amount' => 100,
-    ]);
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders/'.$order->id);
 
-    $orderB = \App\Models\Order::create([
-        'user_id' => $userB->id,
-        'idempotency_key' => 'user-b-order',
-        'status' => 'pending',
-        'total_amount' => 200,
-    ]);
+        $response->assertForbidden();
+    }
 
-    $token = $userA->createToken('test-token')->plainTextToken;
+    public function test_order_resource_hides_internal_fields(): void
+    {
+        $user = User::factory()->create();
 
-    $response = $this
-        ->withHeader('Authorization', 'Bearer '.$token)
-        ->getJson('/api/orders');
+        $order = Order::create([
+            'user_id' => $user->id,
+            'idempotency_key' => 'secret-idempotency-key',
+            'status' => 'pending',
+            'total_amount' => 750,
+        ]);
 
-    $response
-        ->assertOk()
-        ->assertJsonPath('success', true);
+        $token = $user->createToken('test-token')->plainTextToken;
 
-    $this->assertCount(
-        1,
-        $response->json('data')
-    );
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders/'.$order->id);
 
-    $response->assertJsonPath(
-        'data.0.id',
-        $orderA->id
-    );
+        $response
+            ->assertOk()
+            ->assertJsonMissingPath('data.user_id')
+            ->assertJsonMissingPath('data.idempotency_key')
+            ->assertJsonMissingPath('data.updated_at');
+    }
 
-    $response->assertJsonMissing([
-        'id' => $orderB->id,
-    ]);
-}
+    public function test_user_only_sees_own_orders(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $orderA = Order::create([
+            'user_id' => $userA->id,
+            'idempotency_key' => 'user-a-order',
+            'status' => 'pending',
+            'total_amount' => 100,
+        ]);
+
+        $orderB = Order::create([
+            'user_id' => $userB->id,
+            'idempotency_key' => 'user-b-order',
+            'status' => 'pending',
+            'total_amount' => 200,
+        ]);
+
+        $token = $userA->createToken('test-token')->plainTextToken;
+
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertCount(
+            1,
+            $response->json('data')
+        );
+
+        $response->assertJsonPath(
+            'data.0.id',
+            $orderA->id
+        );
+
+        $response->assertJsonMissing([
+            'id' => $orderB->id,
+        ]);
+    }
 }

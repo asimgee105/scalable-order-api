@@ -9,30 +9,29 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
+    public function up(): void
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->string('idempotency_key', 100)
+                ->nullable()
+                ->after('user_id');
 
-public function up(): void
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->string('idempotency_key', 100)
-            ->nullable()
-            ->after('user_id');
+            $table->unique([
+                'user_id',
+                'idempotency_key',
+            ]);
+        });
+    }
 
-        $table->unique([
-            'user_id',
-            'idempotency_key',
-        ]);
-    });
-}
+    public function down(): void
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropUnique([
+                'user_id',
+                'idempotency_key',
+            ]);
 
-public function down(): void
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->dropUnique([
-            'user_id',
-            'idempotency_key',
-        ]);
-
-        $table->dropColumn('idempotency_key');
-    });
-}
+            $table->dropColumn('idempotency_key');
+        });
+    }
 };
