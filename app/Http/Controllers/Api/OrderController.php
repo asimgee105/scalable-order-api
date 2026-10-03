@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -90,7 +91,7 @@ public function store(StoreOrderRequest $request): JsonResponse
             ]);
 
             $product->decrement('stock', $quantity);
-
+            Cache::forget("product:{$product->id}");
             $total += $subtotal;
         }
 
